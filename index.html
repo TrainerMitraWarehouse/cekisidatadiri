@@ -3,49 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cek Data Onboarding Peserta</title>
+    <title>Cek Data Onboarding Trainer</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f6f9;
             margin: 0;
-            padding: 15px;
+            padding: 12px;
             color: #333;
         }
         .container {
             max-width: 600px;
             margin: 0 auto;
             background: #fff;
-            padding: 20px;
+            padding: 16px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         h2 {
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             text-align: center;
             color: #007bff;
             margin-top: 0;
+            margin-bottom: 15px;
         }
-        .search-box {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
+        .filter-group {
+            margin-bottom: 12px;
         }
-        input[type="text"] {
-            flex: 1;
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #555;
+        }
+        input, select, button {
+            width: 100%;
             padding: 10px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             border: 1px solid #ccc;
             border-radius: 4px;
+            box-sizing: border-box;
+            background: #fff;
         }
         button {
-            padding: 10px 15px;
-            font-size: 1rem;
             background-color: #007bff;
             color: white;
             border: none;
-            border-radius: 4px;
+            font-weight: bold;
             cursor: pointer;
+            margin-top: 5px;
         }
         button:active {
             background-color: #0056b3;
@@ -55,79 +62,145 @@
             border: 1px solid #ddd;
             border-left: 5px solid #28a745;
             padding: 12px;
-            margin-bottom: 10px;
+            margin-top: 10px;
             border-radius: 4px;
             font-size: 0.9rem;
         }
+        .card.belum {
+            border-left-color: #dc3545;
+        }
         .card p {
-            margin: 6px 0;
+            margin: 5px 0;
         }
         .loading, .no-result {
             text-align: center;
             color: #666;
             font-style: italic;
+            margin-top: 20px;
+        }
+        .stats {
+            font-size: 0.85rem;
+            color: #555;
+            margin-bottom: 10px;
+            text-align: right;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Cek Data Onboarding</h2>
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Ketik Nama / Email peserta...">
-        <button onclick="cariData()">Cari</button>
+    <h2>Cek Kehadiran Onboarding</h2>
+    
+    <div class="filter-group">
+        <label for="filterTanggal">Tanggal Onboarding:</label>
+        <input type="date" id="filterTanggal">
     </div>
 
+    <div class="filter-group">
+        <label for="filterLokasi">Lokasi Onboarding:</label>
+        <select id="filterLokasi">
+            <option value="">-- Semua Lokasi Onboarding --</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label for="searchNama">Cari Nama Peserta / Sumber:</label>
+        <input type="text" id="searchNama" placeholder="Ketik nama...">
+    </div>
+
+    <button onclick="filterData()">Tampilkan Data</button>
+
+    <div id="statsContainer"></div>
     <div id="resultContainer">
-        <p class="loading">Masukkan nama peserta untuk mulai mengecek.</p>
+        <p class="loading">Memuat data dari sistem...</p>
     </div>
 </div>
 
 <script>
-    // MASUKKAN URL WEB APP GOOGLE SCRIPT KAMU DI SINI
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzwQBFixw3elichTUZ1dxDhn4-FanJPIGdFSsXB-PI6XQBU1uhjvgPzc6_QRXhkhUTE/exec";
+    // GANTI DENGAN URL WEB APP GOOGLE SCRIPT KAMU
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwee13q9JUpkkzw_rU_AS0dG1XBjQ59WjW0JYBwrrKWtJzzkRUlRkgv2ILlHur-k2HJ/exec";
+    
+    let allData = [];
 
-    // Agar bisa cari otomatis saat tekan "Enter"
-    document.getElementById("searchInput").addEventListener("keypress", function(event) {
-        if (event.key === "Enter") {
-            cariData();
-        }
-    });
+    window.onload = function() {
+        ambilDataDariServer();
+    };
 
-    function cariData() {
-        const query = document.getElementById("searchInput").value.trim();
-        const container = document.getElementById("resultContainer");
-        
-        container.innerHTML = `<p class="loading">Sedang mencari data...</p>`;
-
-        fetch(`${WEB_APP_URL}?q=${encodeURIComponent(query)}`)
+    function ambilDataDariServer() {
+        fetch(WEB_APP_URL)
             .then(response => response.json())
             .then(data => {
-                container.innerHTML = "";
-                
-                if (data.length === 0) {
-                    container.innerHTML = `<p class="no-result">Data peserta tidak ditemukan.</p>`;
-                    return;
-                }
-
-                data.forEach(item => {
-                    let card = document.createElement("div");
-                    card.className = "card";
-                    
-                    let contentHTML = "";
-                    // Menampilkan semua kolom secara dinamis dari Google Sheet
-                    for (let key in item) {
-                        contentHTML += `<p><strong>${key}:</strong> ${item[key]}</p>`;
-                    }
-                    
-                    card.innerHTML = contentHTML;
-                    container.appendChild(card);
-                });
+                allData = data;
+                populateLokasiDropdown(data);
+                document.getElementById("resultContainer").innerHTML = `<p class="loading">Silakan pilih filter lalu klik 'Tampilkan Data'.</p>`;
             })
             .catch(error => {
                 console.error("Error:", error);
-                container.innerHTML = `<p class="no-result" style="color:red;">Gagal memuat data. Coba lagi.</p>`;
+                document.getElementById("resultContainer").innerHTML = `<p class="no-result" style="color:red;">Gagal memuat data dari Spreadsheet.</p>`;
             });
+    }
+
+    function populateLokasiDropdown(data) {
+        const lokasiSet = new Set();
+        data.forEach(item => {
+            if (item.lokasiOnboarding) {
+                lokasiSet.add(item.lokasiOnboarding.trim());
+            }
+        });
+
+        const selectLokasi = document.getElementById("filterLokasi");
+        lokasiSet.forEach(lokasi => {
+            let option = document.createElement("option");
+            option.value = lokasi;
+            option.textContent = lokasi;
+            selectLokasi.appendChild(option);
+        });
+    }
+
+    function filterData() {
+        const tglFilter = document.getElementById("filterTanggal").value;
+        const lokasiFilter = document.getElementById("filterLokasi").value;
+        const namaFilter = document.getElementById("searchNama").value.toLowerCase().trim();
+        
+        const container = document.getElementById("resultContainer");
+        const statsContainer = document.getElementById("statsContainer");
+        
+        container.innerHTML = `<p class="loading">Menyaring data...</p>`;
+
+        let filtered = allData.filter(item => {
+            let matchTgl = !tglFilter || item.tglOnboardingClean === tglFilter;
+            let matchLokasi = !lokasiFilter || item.lokasiOnboarding.trim() === lokasiFilter.trim();
+            let matchNama = !namaFilter || item.namaSumber.toLowerCase().includes(namaFilter);
+            
+            return matchTgl && matchLokasi && matchNama;
+        });
+
+        statsContainer.innerHTML = `<div class="stats">Ditemukan: <b>${filtered.length}</b> peserta</div>`;
+        container.innerHTML = "";
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<p class="no-result">Tidak ada peserta yang sesuai dengan filter.</p>';
+            return;
+        }
+
+        filtered.forEach(item => {
+            let card = document.createElement("div");
+            
+            // Cek apakah status pengisian sudah terisi (sesuaikan kata kunci jika perlu, misal "Sudah" atau "Lengkap")
+            let statusLower = String(item.statusPengisian).toLowerCase();
+            let isSudah = statusLower.includes("sudah") || statusLower.includes("lengkap") || statusLower.includes("done");
+            card.className = "card " + (isSudah ? "" : "belum");
+
+            card.innerHTML = `
+                <p><strong>Nama Sumber:</strong> ${item.namaSumber || '-'}</p>
+                <p><strong>Role:</strong> ${item.role || '-'}</p>
+                <p><strong>Lokasi Penempatan:</strong> ${item.lokasiPenempatan || '-'}</p>
+                <p><strong>Tanggal Onboarding:</strong> ${item.tglOnboardingClean || '-'}</p>
+                <p><strong>Lokasi Onboarding:</strong> ${item.lokasiOnboarding || '-'}</p>
+                <p><strong>Status Data Diri:</strong> <span style="color:${isSudah ? 'green' : 'red'}; font-weight:bold;">${item.statusPengisian || 'Belum Diisi'}</span></p>
+            `;
+            container.appendChild(card);
+        });
     }
 </script>
 
